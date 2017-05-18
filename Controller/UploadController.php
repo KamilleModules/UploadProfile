@@ -6,6 +6,7 @@ namespace Controller\UploadProfile;
 
 use Bat\FileSystemTool;
 use Core\Services\X;
+use Kamille\Architecture\ApplicationParameters\ApplicationParameters;
 use Kamille\Architecture\Controller\ControllerInterface;
 use Kamille\Architecture\Response\Web\HttpResponse;
 use Kamille\Services\XLog;
@@ -23,6 +24,8 @@ class UploadController implements ControllerInterface
         ) {
             $profileId = $_GET['file'];
             $phpFile = $_FILES['file'];
+
+            // AutoAdmin/kamille.ek_product_reference_shop.image
 
             $finder = X::get("UploadProfile_profileFinder");
             /**
@@ -52,6 +55,7 @@ class UploadController implements ControllerInterface
                     }
 
                     $newFile = $profile['targetDir'] . "/" . $newName;
+
                     FileSystemTool::mkfile($newFile); // just ensure that directory chain is created
 
                     if (0 === $phpFile['error']) {
@@ -82,13 +86,33 @@ class UploadController implements ControllerInterface
                             //--------------------------------------------
                             if (true === move_uploaded_file($src, $newFile)) {
 
+
+                                if (true === ApplicationParameters::get("debug")) {
+                                    XLog::log("debug.upload", "File uploaded: $newFile");
+                                }
+
                                 if (array_key_exists('uploadAfter', $profile) && is_callable($profile['uploadAfter'])) {
                                     call_user_func($profile['uploadAfter'], $newFile);
                                 }
 
-                                // ok
-                                return HttpResponse::create("ok", 200);
 
+                                //--------------------------------------------
+                                // SEND THE RESPONSE BACK
+                                //--------------------------------------------
+                                $fileUri = $newFile;
+                                if (array_key_exists('getUri', $profile)) {
+                                    if (is_callable($profile['getUri'])) {
+                                        $fileUri = call_user_func($profile['getUri'], $newName);
+                                    } elseif (is_string($profile['getUri'])) {
+                                        $fileUri = $profile['getUri'];
+                                    }
+                                } else {
+                                    $wwwDir = ApplicationParameters::get("app_dir") . "/www";
+                                    if (0 === strpos($fileUri, $wwwDir)) {
+                                        $fileUri = str_replace($wwwDir, '', $fileUri);
+                                    }
+                                }
+                                return HttpResponse::create($fileUri, 200);
 
                             } else {
                                 XLog::error("UploadController.handleUpload: move_uploaded_file function failed with profileId $profileId");

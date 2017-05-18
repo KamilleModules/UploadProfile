@@ -38,6 +38,16 @@ None
 
 
 
+Various
+===========
+By default, this module adds a log entry with the "debug.upload" key when an upload is successfully performed and
+the debug mode is on.
+
+
+
+
+
+
 History Log
 ------------------
     
